@@ -72,8 +72,8 @@ def undistort_image(image, mtx, dist):
 # Perspective Transform #
 #########################
 
-def warp_image(image):
-    (h, w, _) = image.shape
+def warp_image(threshold):
+    h, w = threshold.shape[0], threshold.shape[1]
 
     src = np.array((
         [[607, 440],
@@ -100,7 +100,7 @@ def warp_image(image):
     # cv2.waitKey(0)
 
     M = cv2.getPerspectiveTransform(src, dst)
-    warped = cv2.warpPerspective(undistorted, M, (w, h))
+    warped = cv2.warpPerspective(threshold, M, (w, h))
     MInv = cv2.getPerspectiveTransform(dst, src)
 
     # Uncomment to show red lines drawn for region of interest
@@ -116,10 +116,44 @@ def warp_image(image):
     return warped, M, MInv
 
 
-image = cv2.imread('test_images/test2.jpg')
+######################
+# Color and Gradient #
+######################
+
+def color_and_gradient_threshold(undistorted, s_thresh=(170, 255), sx_thresh=(20, 100)):
+    # grayscale
+    gray = cv2.cvtColor(undistorted, cv2.COLOR_BGR2GRAY)
+
+    # convert to HLS
+    hls = cv2.cvtColor(undistorted, cv2.COLOR_BGR2HLS).astype(np.float)
+    # separate the S channel
+    s_channel = hls[:, :, 2]
+
+    # Sobel X
+    sobelx = cv2.Sobel(gray, cv2.CV_64F, 1, 0)  # Take the derivative in x
+    abs_sobelx = np.absolute(sobelx) # Absolute x derivative to accentuate lines away from horizontal
+    scaled_sobel = np.uint8(255 * abs_sobelx / np.max(abs_sobelx))
+
+    # Threshold x gradient
+    sxbinary = np.zeros_like(scaled_sobel)
+    sxbinary[(scaled_sobel >= sx_thresh[0]) & (scaled_sobel <= sx_thresh[1])] = 1
+
+    # Threshold color channel
+    s_binary = np.zeros_like(s_channel)
+    s_binary[(s_channel >= s_thresh[0]) & (s_channel <= s_thresh[1])] = 1
+
+    # Combine the two binary thresholds
+    combined_binary = np.zeros_like(gray)
+    combined_binary[(s_binary == 1) | (sxbinary == 1)] = 1
+
+    return combined_binary
+
+
+image = cv2.imread('test_images/test3.jpg')
 mtx, dist = calibrate_camera()
 undistorted = undistort_image(image, mtx, dist)
-warped, M, MInv = warp_image(image)
+threshold = color_and_gradient_threshold(undistorted)
+warped, M, MInv = warp_image(threshold)
 
-cv2.imshow('', warped)
-cv2.waitKey(0)
+plt.imshow(threshold, cmap='gray')
+plt.show()
