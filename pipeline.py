@@ -68,9 +68,58 @@ def undistort_image(image, mtx, dist):
     return cv2.undistort(image, mtx, dist, None)
 
 
-image = cv2.imread('test_images/test4.jpg')
+#########################
+# Perspective Transform #
+#########################
+
+def warp_image(image):
+    (h, w, _) = image.shape
+
+    src = np.array((
+        [[607, 440],
+         [670, 440],
+         [1117, h],
+         [194, h]
+         ]), dtype=np.float32)
+
+    offset = 250
+    dst = np.array([
+        [offset, 0],
+        [w - offset, 0],
+        [w - offset, h],
+        [offset, h]], dtype=np.float32)
+
+    # Uncomment to show red lines drawn for region of interest
+    # src = src.reshape(-1, 1, 2)
+    # undistorted = cv2.polylines(undistorted,
+    #                             pts=np.int32([src]),
+    #                             isClosed=True,
+    #                             color=(0, 0, 255),
+    #                             thickness=1)
+    # cv2.imshow('', undistorted)
+    # cv2.waitKey(0)
+
+    M = cv2.getPerspectiveTransform(src, dst)
+    warped = cv2.warpPerspective(undistorted, M, (w, h))
+    MInv = cv2.getPerspectiveTransform(dst, src)
+
+    # Uncomment to show red lines drawn for region of interest
+    # dst = dst.reshape(-1, 1, 2)
+    # warped = cv2.polylines(warped,
+    #                        pts=np.int32([dst]),
+    #                        isClosed=True,
+    #                        color=(0, 0, 255),
+    #                        thickness=1)
+    # cv2.imshow('', warped)
+    # cv2.waitKey(0)
+
+    return warped, M, MInv
+
+
+image = cv2.imread('test_images/test2.jpg')
 mtx, dist = calibrate_camera()
 undistorted = undistort_image(image, mtx, dist)
-cv2.imshow('', undistorted)
-cv2.waitKey(0)
+warped, M, MInv = warp_image(image)
 
+cv2.imshow('', warped)
+cv2.waitKey(0)
