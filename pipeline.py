@@ -4,7 +4,6 @@ import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
 import glob
 
-
 ######################
 # Camera Calibration #
 ######################
@@ -416,32 +415,17 @@ def pipeline(orig, mtx, dist):
     return result
 
 
-mtx, dist = calibrate_camera()
-orig = cv2.imread('./test_images/test4.jpg')
-undistorted = undistort_image(orig, mtx, dist)
-
-binary = color_and_gradient_threshold(undistorted)
-binary_cropped = region_of_interest(binary)
-binary_warped, M, MInv = warp_image(binary_cropped)
-
-ret_1 = compute_best_fit(binary_warped)
-ret_2 = compute_curvature(binary_warped, ret_1)
-result = color_lane(orig, undistorted, binary_warped, MInv, ret_1, ret_2)
-
-cv2.imshow('', result)
-cv2.waitKey(0)
-
-
-
-
 def process_image(image):
     return pipeline(image, mtx, dist)
 
-# # video_file_name = "project_video.mp4"
-# # video_file_name = "challenge_video.mp4"
+
+mtx, dist = calibrate_camera()
+
+video_file_name = "project_video.mp4"
+# video_file_name = "challenge_video.mp4"
 # video_file_name = "harder_challenge_video.mp4"
 #
-# white_output = 'test_video_output/' + video_file_name
-# clip1 = VideoFileClip(video_file_name)
-# white_clip = clip1.fl_image(process_image)
-# white_clip.write_videofile(white_output, audio=False)
+write_output = 'test_video_output/' + video_file_name
+clip1 = VideoFileClip(video_file_name)
+white_clip = clip1.fl_image(process_image)
+white_clip.write_videofile(write_output, audio=False)
