@@ -182,7 +182,7 @@ def color_and_gradient_threshold(undistort, s_thresh=(170, 255), sx_thresh=(20, 
 
 
 def compute_best_fit(binary_warped):
-    # Assuming you have created a warped binary image called "binary_warped"
+    # Assuming you have created a warped binary image called "binary_warped" pixethe
     # Take a histogram of the bottom half of the image
     histogram = np.sum(binary_warped[binary_warped.shape[0] // 2:, :], axis=0)
     # Create an output image to draw on and  visualize the result

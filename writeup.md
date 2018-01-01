@@ -130,9 +130,53 @@ The logic to identify the lane-line pixels and fit their positions with a polyno
 
 ![](./images/polynomial.png)
 
+These are the main steps involved:
+
+1. A histogram is computed for the bottom half of the image.
+2. Find the peaks of the histogram. These are the starting points of the left and right lane lines respectively.
+3. Given a number of windows (here number of windows = 9) of a given height and width, pixel locations are extracted. 
+4. For each window, if there are enough pixels in the window, then the pixel positions are recorded. Otherwise, the window is recentered and the process repeats.
+5. The end result is a set of left and right points that represent lane pixels. 
+
 #### 5. Describe how (and identify where in your code) you calculated the radius of curvature of the lane and the position of the vehicle with respect to center.
 
-I did this in the `compute_curvature()` function.
+I did this in the `compute_curvature()` function. First, the polynomials are computed for both the left and right lanes:
+
+  ```python
+  # Define conversions in x and y from pixels space to meters
+  ym_per_pix = 30.0 / 720  # meters per pixel in y dimension
+  xm_per_pix = 3.7 / 700  # meters per pixel in x dimension
+
+  # Fit new polynomials to x,y in world space
+  left_fit_cr = np.polyfit(lefty * ym_per_pix, leftx * xm_per_pix, 2)
+  right_fit_cr = np.polyfit(righty * ym_per_pix, rightx * xm_per_pix, 2)
+  ```
+  
+Once the polynomials are computed, the radius of the curvature can be computed for both lanes:
+  
+  ```
+  # Calculate the new radii of curvature
+  left_curve_rad = ((1 + (2 * left_fit_cr[0] * y_eval * ym_per_pix + left_fit_cr[1]) ** 2) ** 1.5) / np.absolute(
+      2 * left_fit_cr[0])
+  right_curve_rad = ((1 + (2 * right_fit_cr[0] * y_eval * ym_per_pix + right_fit_cr[1]) ** 2) ** 1.5) / np.absolute(
+      2 * right_fit_cr[0])
+      
+  ```
+  
+Now that we have the radius of the curvature in meters, we can compute the left position and right position of the vehicle:
+  
+  ```
+  left_pos = (left_fit[0] * y_eval ** 2 + left_fit[1] * y_eval + left_fit[2])
+  right_pos = (right_fit[0] * y_eval ** 2 + right_fit[1] * y_eval + right_fit[2])
+  ```
+  
+Therefore, the middle position of the vehicle can be computed:
+  
+  ```
+  middle_pos = (left_pos + right_pos) / 2.0
+  mid_dist = binary_warped.shape[1] / 2.0 - middle_pos
+  mid_dist_in_m = xm_per_pix * mid_dist
+  ```
 
 #### 6. Provide an example image of your result plotted back down onto the road such that the lane area is identified clearly.
 
@@ -155,4 +199,8 @@ Here's a [link to my video result](./test_video_output/project_video.mp4)
 
 #### 1. Briefly discuss any problems / issues you faced in your implementation of this project.  Where will your pipeline likely fail?  What could you do to make it more robust?
 
-Here I'll talk about the approach I took, what techniques I used, what worked and why, where the pipeline might fail and how I might improve it if I were going to pursue this project further.  
+The pipeline does fairly well on the project video. However, it does poorly on both the challenge videos. There are a few reasons for this. For starters, the challenge videos feature more vehicles changing lanes (therefore obscuring lane markings), shadows, more curves and turns, and bright sunlight.
+
+There are a few ways to get around this. First would be to preprocess the images and normalize the images. For this implementation, there is no preprocessing step except for undistorting the images and applying a region of interest mask.
+
+This implementation also doesn't keep the results of previous findings, nor does it have any notion of "confidence" when computing polynomials. For example, a nonsensical result where the left and right lane both curves in different directions should not be accepted. Therefore, previous valid results can be saved and used to compute the current curvature should the current computation yield an unsatisfactory result.
