@@ -8,6 +8,8 @@ import glob
 ######################
 # Camera Calibration #
 ######################
+from moviepy.video.io.VideoFileClip import VideoFileClip
+
 
 def calibrate_camera(draw_chessboard=False):
     nx, ny = 9, 6
@@ -150,12 +152,12 @@ def warp_image(threshold):
 # Color and Gradient #
 ######################
 
-def color_and_gradient_threshold(undistorted, s_thresh=(170, 255), sx_thresh=(20, 100)):
+def color_and_gradient_threshold(undistort, s_thresh=(170, 255), sx_thresh=(20, 100)):
     # grayscale
-    gray = cv2.cvtColor(undistorted, cv2.COLOR_BGR2GRAY)
+    gray = cv2.cvtColor(undistort, cv2.COLOR_BGR2GRAY)
 
     # convert to HLS
-    hls = cv2.cvtColor(undistorted, cv2.COLOR_BGR2HLS).astype(np.float)
+    hls = cv2.cvtColor(undistort, cv2.COLOR_BGR2HLS).astype(np.float)
     # separate the S channel
     s_channel = hls[:, :, 2]
 
@@ -275,11 +277,11 @@ def compute_best_fit(binary_warped):
     out_img[nonzeroy[left_lane_inds], nonzerox[left_lane_inds]] = [255, 0, 0]
     out_img[nonzeroy[right_lane_inds], nonzerox[right_lane_inds]] = [0, 0, 255]
 
-    plt.imshow(out_img)
-    plt.plot(left_fitx, ploty, color='yellow')
-    plt.plot(right_fitx, ploty, color='yellow')
-    plt.xlim(0, 1280)
-    plt.ylim(720, 0)
+    # plt.imshow(out_img)
+    # plt.plot(left_fitx, ploty, color='yellow')
+    # plt.plot(right_fitx, ploty, color='yellow')
+    # plt.xlim(0, 1280)
+    # plt.ylim(720, 0)
 
     # Create an image to draw on and an image to show the selection window
     out_img = np.dstack((binary_warped, binary_warped, binary_warped)) * 255
@@ -303,13 +305,13 @@ def compute_best_fit(binary_warped):
     cv2.fillPoly(window_img, np.int_([left_line_pts]), (0, 255, 0))
     cv2.fillPoly(window_img, np.int_([right_line_pts]), (0, 255, 0))
     result = cv2.addWeighted(out_img, 1, window_img, 0.3, 0)
-    plt.imshow(result)
-    plt.plot(left_fitx, ploty, color='yellow')
-    plt.plot(right_fitx, ploty, color='yellow')
-    plt.xlim(0, 1280)
-    plt.ylim(720, 0)
-
-    plt.show()
+    # plt.imshow(result)
+    # plt.plot(left_fitx, ploty, color='yellow')
+    # plt.plot(right_fitx, ploty, color='yellow')
+    # plt.xlim(0, 1280)
+    # plt.ylim(720, 0)
+    #
+    # plt.show()
 
     ret = {'left_fit': left_fit,
            'left_fitx': left_fitx,
@@ -318,7 +320,8 @@ def compute_best_fit(binary_warped):
            'right_fit': right_fit,
            'right_fitx': right_fitx,
            'rightx': rightx,
-           'righty': righty}
+           'righty': righty,
+           'ploty': ploty}
 
     return ret
 
@@ -349,17 +352,13 @@ def compute_curvature(binary_warped, ret):
         2 * left_fit_cr[0])
     right_curve_rad = ((1 + (2 * right_fit_cr[0] * y_eval * ym_per_pix + right_fit_cr[1]) ** 2) ** 1.5) / np.absolute(
         2 * right_fit_cr[0])
-    # Now our radius of curvature is in meters
-    print(left_curve_rad, 'm', right_curve_rad, 'm')
-    # Example values: 632.1 m    626.2 m
 
+    # Now our radius of curvature is in meters
     left_pos = (left_fit[0] * y_eval ** 2 + left_fit[1] * y_eval + left_fit[2])
     right_pos = (right_fit[0] * y_eval ** 2 + right_fit[1] * y_eval + right_fit[2])
     middle_pos = (left_pos + right_pos) / 2.0
     mid_dist = binary_warped.shape[1] / 2.0 - middle_pos
     mid_dist_in_m = xm_per_pix * mid_dist
-
-    print(mid_dist_in_m, 'm')
 
     ret = {'left_curvature': left_curve_rad,
            'right_curvature': right_curve_rad,
@@ -368,13 +367,66 @@ def compute_curvature(binary_warped, ret):
     return ret
 
 
-image = cv2.imread('test_images/test6.jpg')
+def color_lane(orig, undist, warped, MInv, ret_1, ret_2):
+    left_fitx = ret_1['left_fitx']
+    right_fitx = ret_1['right_fitx']
+    ploty = ret_1['ploty']
+
+    # Create an image to draw the lines on
+    warp_zero = np.zeros_like(warped).astype(np.uint8)
+    color_warp = np.dstack((warp_zero, warp_zero, warp_zero))
+
+    # Recast the x and y points into usable format for cv2.fillPoly()
+    pts_left = np.array([np.transpose(np.vstack([left_fitx, ploty]))])
+    pts_right = np.array([np.flipud(np.transpose(np.vstack([right_fitx, ploty])))])
+    pts = np.hstack((pts_left, pts_right))
+
+    # Draw the lane onto the warped blank image
+    cv2.fillPoly(color_warp, np.int_([pts]), (0, 255, 0))
+
+    # Warp the blank back to original image space using inverse perspective matrix (Minv)
+    newwarp = cv2.warpPerspective(color_warp, MInv, (orig.shape[1], orig.shape[0]))
+    # Combine the result with the original image
+    result = cv2.addWeighted(undist, 1, newwarp, 0.3, 0)
+
+    left_curve_rad = ret_2['left_curvature']
+    right_curve_rad = ret_2['right_curvature']
+    middle_distance = ret_2['middle_distance']
+
+    curvature = 'Radius: ' + str(left_curve_rad) + ' m, ' + str(right_curve_rad) + " m"
+    lane_dist = 'Distance From Road Center: ' + str(middle_distance) + ' m'
+    font = cv2.FONT_HERSHEY_SIMPLEX
+    result = cv2.putText(result, curvature, (25, 50), font, 1, (255, 255, 255), 2, cv2.LINE_AA)
+    result = cv2.putText(result, lane_dist, (25, 100), font, 1, (255, 255, 255), 2, cv2.LINE_AA)
+
+    return result
+
+
+def pipeline(orig, mtx, dist):
+    undistorted = undistort_image(orig, mtx, dist)
+
+    binary = color_and_gradient_threshold(undistorted)
+    binary_cropped = region_of_interest(binary)
+    binary_warped, M, MInv = warp_image(binary_cropped)
+
+    ret_1 = compute_best_fit(binary_warped)
+    ret_2 = compute_curvature(binary_warped, ret_1)
+    result = color_lane(orig, undistorted, binary_warped, MInv, ret_1, ret_2)
+
+    return result
+
+
 mtx, dist = calibrate_camera()
-undistorted = undistort_image(image, mtx, dist)
 
-binary = color_and_gradient_threshold(undistorted)
-binary_cropped = region_of_interest(binary)
-binary_warped, M, MInv = warp_image(binary_cropped)
 
-ret = compute_best_fit(binary_warped)
-ret = compute_curvature(binary_warped, ret)
+def process_image(image):
+    return pipeline(image, mtx, dist)
+
+# video_file_name = "project_video.mp4"
+# video_file_name = "challenge_video.mp4"
+video_file_name = "harder_challenge_video.mp4"
+
+white_output = 'test_video_output/' + video_file_name
+clip1 = VideoFileClip(video_file_name)
+white_clip = clip1.fl_image(process_image)
+white_clip.write_videofile(white_output, audio=False)
