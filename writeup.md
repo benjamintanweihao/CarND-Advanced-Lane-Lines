@@ -36,6 +36,12 @@ Unfilled images means that there wasn't a successful chessboard detection. Once 
 
 In order to undistort the image, both the camera matrix and distortion cofficients obtained from the calibration camera step are used with `cv2.undistort()`. To demonstrate this step, I will describe how I apply the distortion correction to one of the test images like this one:
 
+Applied on one of the chessboard calibration images:
+
+![](./images/orig_dist_chessboard.png)
+
+Applied on a test image:
+
 ![]( ./images/test4.jpg )
 
 After undistortion, the image becomes
