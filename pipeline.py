@@ -1,7 +1,6 @@
 import numpy as np
 import cv2
 import matplotlib.pyplot as plt
-import matplotlib.image as mpimg
 import glob
 
 ######################
@@ -415,9 +414,9 @@ def process_image(image):
 mtx, dist = calibrate_camera()
 
 
-# video_file_name = "project_video.mp4"
+video_file_name = "project_video.mp4"
 # video_file_name = "challenge_video.mp4"
-video_file_name = "harder_challenge_video.mp4"
+# video_file_name = "harder_challenge_video.mp4"
 write_output = 'test_video_output/' + video_file_name
 clip1 = VideoFileClip(video_file_name)
 clip2 = clip1.fl_image(process_image)
