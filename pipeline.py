@@ -79,8 +79,8 @@ def warp_image(threshold):
     h, w = threshold.shape[0], threshold.shape[1]
 
     src = np.array((
-        [[607, 440],
-         [670, 440],
+        [[576, 461],
+         [706, 461],
          [1117, h],
          [194, h]
          ]), dtype=np.float32)
@@ -414,15 +414,10 @@ def process_image(image):
 
 mtx, dist = calibrate_camera()
 
-# orig = cv2.imread("test_images/problematic.png")
-# result = pipeline(orig, mtx, dist)
-#
-# plt.imshow(result)
-# plt.show()
 
-video_file_name = "project_video.mp4"
+# video_file_name = "project_video.mp4"
 # video_file_name = "challenge_video.mp4"
-# video_file_name = "harder_challenge_video.mp4"
+video_file_name = "harder_challenge_video.mp4"
 write_output = 'test_video_output/' + video_file_name
 clip1 = VideoFileClip(video_file_name)
 clip2 = clip1.fl_image(process_image)
