@@ -66,37 +66,8 @@ def calibrate_camera(draw_chessboard=False):
 ######################
 
 def undistort_image(image, mtx, dist):
+    image = np.copy(image)
     return cv2.undistort(image, mtx, dist, None)
-
-
-def region_of_interest(image):
-    """
-    Applies an image mask.
-    Only keeps the region of the image defined by the polygon
-    formed from `vertices`. The rest of the image is set to black.
-    """
-    # defining a blank mask to start with
-    mask = np.zeros_like(image)
-
-    # defining a 3 channel or 1 channel color to fill the mask with depending on the input image
-    if len(image.shape) > 2:
-        channel_count = image.shape[2]  # i.e. 3 or 4 depending on your image
-        ignore_mask_color = (255,) * channel_count
-    else:
-        ignore_mask_color = 255
-
-    h, w = image.shape[0], image.shape[1]
-
-    # 4. Define a polygon to mask
-    vertices = np.array([[(727, 450), (598, 450), (180, h), (1240, h)]], dtype=np.int32)
-
-    # filling pixels inside the polygon defined by "vertices" with the fill color
-    cv2.fillPoly(mask, vertices, ignore_mask_color)
-
-    # returning the image only where mask pixels are nonzero
-    masked_image = cv2.bitwise_and(image, mask)
-
-    return masked_image
 
 
 #########################
@@ -104,6 +75,7 @@ def region_of_interest(image):
 #########################
 
 def warp_image(threshold):
+    threshold = np.copy(threshold)
     h, w = threshold.shape[0], threshold.shape[1]
 
     src = np.array((
@@ -147,40 +119,59 @@ def warp_image(threshold):
     return warped, M, MInv
 
 
-######################
-# Color and Gradient #
-######################
+###################
+# Color Threshold #
+###################
 
-def color_and_gradient_threshold(undistort, s_thresh=(170, 255), sx_thresh=(20, 100)):
-    # grayscale
-    gray = cv2.cvtColor(undistort, cv2.COLOR_BGR2GRAY)
+def convert_to_binary(bgr_img):
+    bgr_img = np.copy(bgr_img)
+    threshold = [10, 255]
 
-    # convert to HLS
-    hls = cv2.cvtColor(undistort, cv2.COLOR_BGR2HLS).astype(np.float)
-    # separate the S channel
-    s_channel = hls[:, :, 2]
+    bgr_img = cv2.cvtColor(bgr_img, cv2.COLOR_BGR2GRAY)
+    bin = np.zeros_like(bgr_img)
+    bin[(bgr_img >= threshold[0]) & (bgr_img <= threshold[1])] = 1
 
-    # Sobel X
-    sobelx = cv2.Sobel(gray, cv2.CV_64F, 1, 0)  # Take the derivative in x
-    abs_sobelx = np.absolute(sobelx)  # Absolute x derivative to accentuate lines away from horizontal
-    scaled_sobel = np.uint8(255 * abs_sobelx / np.max(abs_sobelx))
+    return bin
 
-    # Threshold x gradient
-    sxbinary = np.zeros_like(scaled_sobel)
-    sxbinary[(scaled_sobel >= sx_thresh[0]) & (scaled_sobel <= sx_thresh[1])] = 1
 
-    # Threshold color channel
-    s_binary = np.zeros_like(s_channel)
-    s_binary[(s_channel >= s_thresh[0]) & (s_channel <= s_thresh[1])] = 1
+def color_threshold(undistort):
+    undistort = np.copy(undistort)
+    undistort = cv2.cvtColor(undistort, cv2.COLOR_RGB2BGR)
 
-    # Combine the two binary thresholds
-    combined_binary = np.zeros_like(gray)
-    combined_binary[(s_binary == 1) | (sxbinary == 1)] = 1
+    white_bgr_lower = np.array([100, 100, 200], dtype=np.uint8)
+    white_bgr_upper = np.array([255, 255, 255], dtype=np.uint8)
+    white_bgr_range = cv2.inRange(undistort, white_bgr_lower, white_bgr_upper)
+    white_bgr = cv2.bitwise_and(undistort, undistort, mask=white_bgr_range)
+    white_bgr = convert_to_binary(white_bgr)
+
+    yellow_bgr_lower = np.array([84, 191, 200], dtype=np.uint8)
+    yellow_bgr_upper = np.array([170, 255, 255], dtype=np.uint8)
+    yellow_bgr_range = cv2.inRange(undistort, yellow_bgr_lower, yellow_bgr_upper)
+    yellow_bgr = cv2.bitwise_and(undistort, undistort, mask=yellow_bgr_range)
+    yellow_bgr = convert_to_binary(yellow_bgr)
+
+    hls = cv2.cvtColor(undistort, cv2.COLOR_BGR2HLS)
+    yellow_lower = np.array([20, 100, 100], dtype=np.uint8)
+    yellow_upper = np.array([40, 200, 255], dtype=np.uint8)
+    yellow_range = cv2.inRange(hls, yellow_lower, yellow_upper)
+
+    white_dark = np.array([0, 0, 0], dtype=np.uint8)
+    white_light = np.array([0, 0, 255], dtype=np.uint8)
+    white_range = cv2.inRange(hls, white_dark, white_light)
+    yellows_or_whites = yellow_range | white_range
+
+    hls = cv2.bitwise_and(undistort, undistort, mask=yellows_or_whites)
+    hls = cv2.cvtColor(hls, cv2.COLOR_HLS2BGR)
+    hls = convert_to_binary(hls)
+
+    combined_binary = np.zeros_like(hls)
+    combined_binary[(hls == 1) | (white_bgr == 1) | (yellow_bgr == 1)] = 1
 
     return combined_binary
 
 
 def compute_best_fit(binary_warped):
+    binary_warped = np.copy(binary_warped)
     # Assuming you have created a warped binary image called "binary_warped" pixethe
     # Take a histogram of the bottom half of the image
     histogram = np.sum(binary_warped[binary_warped.shape[0] // 2:, :], axis=0)
@@ -205,7 +196,7 @@ def compute_best_fit(binary_warped):
     leftx_current = leftx_base
     rightx_current = rightx_base
     # Set the width of the windows +/- margin
-    margin = 100
+    margin = 50
     # Set minimum number of pixels found to recenter window
     minpix = 50
     # Create empty lists to receive left and right lane pixel indices
@@ -403,11 +394,8 @@ def color_lane(orig, undist, warped, MInv, ret_1, ret_2):
 
 def pipeline(orig, mtx, dist):
     undistorted = undistort_image(orig, mtx, dist)
-
-    binary = color_and_gradient_threshold(undistorted)
-    binary_cropped = region_of_interest(binary)
-    binary_warped, M, MInv = warp_image(binary_cropped)
-
+    binary = color_threshold(undistorted)
+    binary_warped, M, MInv = warp_image(binary)
     ret_1 = compute_best_fit(binary_warped)
     ret_2 = compute_curvature(binary_warped, ret_1)
     result = color_lane(orig, undistorted, binary_warped, MInv, ret_1, ret_2)
@@ -416,16 +404,26 @@ def pipeline(orig, mtx, dist):
 
 
 def process_image(image):
-    return pipeline(image, mtx, dist)
+    try:
+        return pipeline(image, mtx, dist)
+    except Exception:
+        cv2.imshow('', image)
+        cv2.waitKey(0)
+        return image
 
 
 mtx, dist = calibrate_camera()
 
+# orig = cv2.imread("test_images/problematic.png")
+# result = pipeline(orig, mtx, dist)
+#
+# plt.imshow(result)
+# plt.show()
+
 video_file_name = "project_video.mp4"
 # video_file_name = "challenge_video.mp4"
 # video_file_name = "harder_challenge_video.mp4"
-#
 write_output = 'test_video_output/' + video_file_name
 clip1 = VideoFileClip(video_file_name)
-white_clip = clip1.fl_image(process_image)
-white_clip.write_videofile(write_output, audio=False)
+clip2 = clip1.fl_image(process_image)
+clip2.write_videofile(write_output, audio=False)
