@@ -57,16 +57,16 @@ def filter_white_and_yellow(undistort):
     yellow_bgr = convert_to_binary(yellow_bgr)
 
     hls = cv2.cvtColor(undistort, cv2.COLOR_BGR2HLS)
-    yellow_lower = np.array([20, 100, 100], dtype=np.uint8)
+    yellow_lower = np.array([40, 200, 200], dtype=np.uint8)
     yellow_upper = np.array([40, 200, 255], dtype=np.uint8)
     yellow_range = cv2.inRange(hls, yellow_lower, yellow_upper)
 
-    white_dark = np.array([0, 0, 0], dtype=np.uint8)
-    white_light = np.array([0, 0, 255], dtype=np.uint8)
-    white_range = cv2.inRange(hls, white_dark, white_light)
-    yellows_or_whites = yellow_range | white_range
+    # white_dark = np.array([0, 0, 0], dtype=np.uint8)
+    # white_light = np.array([0, 0, 255], dtype=np.uint8)
+    # white_range = cv2.inRange(hls, white_dark, white_light)
+    # yellows_or_whites = yellow_range | white_range
 
-    hls = cv2.bitwise_and(undistort, undistort, mask=yellows_or_whites)
+    hls = cv2.bitwise_and(undistort, undistort, mask=yellow_range)
     hls = cv2.cvtColor(hls, cv2.COLOR_HLS2BGR)
     hls = convert_to_binary(hls)
 
@@ -83,5 +83,5 @@ hls, white_bgr, yellow_bgr = filter_white_and_yellow(orig)
 combine = np.zeros_like(hls)
 combine[(hls == 1) | (white_bgr == 1) | (yellow_bgr == 1)] = 1
 
-plt.imshow(combine, cmap='gray')
+plt.imshow(white_bgr, cmap='gray')
 plt.show()
