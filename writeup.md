@@ -54,64 +54,92 @@ The differences between both images are visualized below:
 
 #### 2. Describe how (and identify where in your code) you used color transforms, gradients or other methods to create a thresholded binary image.  Provide an example of a binary image result.
 
-This is implemented in the `color_and_gradient_threshold` function.
+This is implemented in the `color_threshold` function.
 
-I used a combination of color and gradient thresholds to generate a binary image. These are the steps:
+I used a combination of color thresholds to detect whites and yellows resulting in a binary image. These are the steps:
 
-1. A grayscale image is obtained from the undistorted image.
-2. A HLS image is obtained from the undistorted image. The S channel is isolated.
-3. The first binary images is obtained by computing the Sobel gradient in the X direction, using the grayscale image. It is then thresholded as the following code snippet demonstrates:
+1. A range of white colors are used to detect whites:
+
+    ```python
+    white_bgr_lower = np.array([100, 100, 200], dtype=np.uint8)
+    white_bgr_upper = np.array([255, 255, 255], dtype=np.uint8)
+    white_bgr_range = cv2.inRange(image, white_bgr_lower, white_bgr_upper)
+    white_bgr = cv2.bitwise_and(image, image, mask=white_bgr_range)
+    white_bgr = convert_to_binary(white_bgr)
+    ```
+    
+This results in an image like this:
+
+![](./images/white_bgr.png)
+
+2. A similar process goes for yellows:
+
+    ```python
+    yellow_bgr_lower = np.array([84, 191, 200], dtype=np.uint8)
+    yellow_bgr_upper = np.array([170, 255, 255], dtype=np.uint8)
+    yellow_bgr_range = cv2.inRange(undistort, yellow_bgr_lower, yellow_bgr_upper)
+    yellow_bgr = cv2.bitwise_and(undistort, undistort, mask=yellow_bgr_range)
+    yellow_bgr = convert_to_binary(yellow_bgr)
+    ```
+
+![](./images/yellow_bgr.png)
+
+3. A HLS image is obtained from the undistorted image. Using the lower and upper ranges 
+of both yellow and white, a mask is obtained. This mask is applied onto the original
+image:
   
-  ```python
-  sobelx = cv2.Sobel(gray, cv2.CV_64F, 1, 0)  # Take the derivative in x
-  abs_sobelx = np.absolute(sobelx)  # Absolute x derivative to accentuate lines away from horizontal
-  scaled_sobel = np.uint8(255 * abs_sobelx / np.max(abs_sobelx))
-```
-4. Another image is created by thresholding the S channel from step 2:
+    ```python
+    hls = cv2.cvtColor(undistort, cv2.COLOR_BGR2HLS)
+    yellow_lower = np.array([20, 100, 100], dtype=np.uint8)
+    yellow_upper = np.array([40, 200, 255], dtype=np.uint8)
+    yellow_range = cv2.inRange(hls, yellow_lower, yellow_upper)
 
-  ```python
-  s_binary = np.zeros_like(s_channel)
-  s_binary[(s_channel >= s_thresh[0]) & (s_channel <= s_thresh[1])] = 1
-  ```
+    white_dark = np.array([0, 0, 0], dtype=np.uint8)
+    white_light = np.array([0, 0, 255], dtype=np.uint8)
+    white_range = cv2.inRange(hls, white_dark, white_light)
+    yellows_or_whites = yellow_range | white_range
 
-5. The two binary images are then combined:
+    hls = cv2.bitwise_and(undistort, undistort, mask=yellows_or_whites)
+    hls = cv2.cvtColor(hls, cv2.COLOR_HLS2BGR)
+    hls = convert_to_binary(hls)
+    ```
+    
+![](./images/hls.png)
 
-  ```python
-  combined_binary = np.zeros_like(gray)
-  combined_binary[(s_binary == 1) | (sxbinary == 1)] = 1
-  ```
+4. Finally, all three thrssholds are used that results in the final image:
 
-Here's an example of my output for this step: 
-
-![](./images/threshold.png)
-
-In addition to color and gradient thresholding, I also implemented a `region_of_interest()` function to crop away unncessary areas of the image. Here's the output:
-
-![](./images/roi.png)
+    ```python
+    combined_binary = np.zeros_like(hls)
+    combined_binary[(hls == 1) | (white_bgr == 1) | (yellow_bgr == 1)] = 1
+    ```
+    
+![](./images/combine.png)
+    
+   
 
 #### 3. Describe how (and identify where in your code) you performed a perspective transform and provide an example of a transformed image.
 
 The code for my perspective transform includes a function called `warp_image()`. Here's the implementation:
 
-  ```python
-  src = np.array((
-      [[607, 440],
-        [670, 440],
-        [1117, h],
-        [194, h]
-        ]), dtype=np.float32)
+    ```python
+    src = np.array((
+        [[576, 461],
+         [706, 461],
+         [1117, h],
+         [194, h]
+         ]), dtype=np.float32)
 
-  offset = 250
-  dst = np.array([
-      [offset, 0],
-      [w - offset, 0],
-      [w - offset, h],
-      [offset, h]], dtype=np.float32)
+    offset = 250
+    dst = np.array([
+        [offset, 0],
+        [w - offset, 0],
+        [w - offset, h],
+        [offset, h]], dtype=np.float32)
 
-  M = cv2.getPerspectiveTransform(src, dst)
-  warped = cv2.warpPerspective(threshold, M, (w, h))
-  MInv = cv2.getPerspectiveTransform(dst, src)
-  ```
+     M = cv2.getPerspectiveTransform(src, dst)
+     warped = cv2.warpPerspective(threshold, M, (w, h))
+     MInv = cv2.getPerspectiveTransform(dst, src)
+     ```
   
 In order to get the points for `src`, I used an image with straight lane lines:
 
