@@ -58,62 +58,44 @@ This is implemented in the `color_threshold` function.
 
 I used a combination of color thresholds to detect whites and yellows resulting in a binary image. These are the steps:
 
-1. A range of white colors are used to detect whites:
+1. A range of white colors are used to detect whites in the RGB color space:
 
     ```python
-    white_bgr_lower = np.array([100, 100, 200], dtype=np.uint8)
-    white_bgr_upper = np.array([255, 255, 255], dtype=np.uint8)
-    white_bgr_range = cv2.inRange(image, white_bgr_lower, white_bgr_upper)
-    white_bgr = cv2.bitwise_and(image, image, mask=white_bgr_range)
-    white_bgr = convert_to_binary(white_bgr)
+    undistort_rgb = cv2.cvtColor(undistort, cv2.COLOR_BGR2RGB)
+ 
+    white_lower = np.array([100, 100, 200], dtype=np.uint8)
+    white_upper = np.array([255, 255, 255], dtype=np.uint8)
+    white_range = cv2.inRange(undistort_rgb, white_lower, white_upper)
+    white = cv2.bitwise_and(undistort_rgb, undistort_rgb, mask=white_range)
+    white = convert_to_binary(white)
     ```
     
 This results in an image like this:
 
-![](./images/white_bgr.png)
+![](./images/rgb_white.png)
 
-2. A similar process goes for yellows:
+2. A similar process goes for yellows, but in the HLS color space:
 
     ```python
-    yellow_bgr_lower = np.array([84, 191, 200], dtype=np.uint8)
-    yellow_bgr_upper = np.array([170, 255, 255], dtype=np.uint8)
-    yellow_bgr_range = cv2.inRange(undistort, yellow_bgr_lower, yellow_bgr_upper)
-    yellow_bgr = cv2.bitwise_and(undistort, undistort, mask=yellow_bgr_range)
-    yellow_bgr = convert_to_binary(yellow_bgr)
-    ```
-
-![](./images/yellow_bgr.png)
-
-3. A HLS image is obtained from the undistorted image. Using the lower and upper ranges 
-of both yellow and white, a mask is obtained. This mask is applied onto the original
-image:
-  
-    ```python
-    hls = cv2.cvtColor(undistort, cv2.COLOR_BGR2HLS)
-    yellow_lower = np.array([20, 100, 100], dtype=np.uint8)
+    undistort_hls = cv2.cvtColor(undistort, cv2.COLOR_BGR2HLS)
+ 
     yellow_upper = np.array([40, 200, 255], dtype=np.uint8)
-    yellow_range = cv2.inRange(hls, yellow_lower, yellow_upper)
-
-    white_dark = np.array([0, 0, 0], dtype=np.uint8)
-    white_light = np.array([0, 0, 255], dtype=np.uint8)
-    white_range = cv2.inRange(hls, white_dark, white_light)
-    yellows_or_whites = yellow_range | white_range
-
-    hls = cv2.bitwise_and(undistort, undistort, mask=yellows_or_whites)
-    hls = cv2.cvtColor(hls, cv2.COLOR_HLS2BGR)
-    hls = convert_to_binary(hls)
+    yellow_range = cv2.inRange(undistort_hls, yellow_lower, yellow_upper)
+    yellow = cv2.bitwise_and(undistort_hls, undistort_hls, mask=yellow_range)
+    yellow = cv2.cvtColor(yellow, cv2.COLOR_HLS2BGR)
+    yellow = convert_to_binary(yellow)
     ```
-    
-![](./images/hls.png)
 
-4. Finally, all three thrssholds are used that results in the final image:
+![](./images/hls_yellow.png)
+
+2. Finally, all two thresholds are combined to form the final binary image:
 
     ```python
-    combined_binary = np.zeros_like(hls)
-    combined_binary[(hls == 1) | (white_bgr == 1) | (yellow_bgr == 1)] = 1
+    combined_binary = np.zeros_like(yellow)
+    combined_binary[(yellow == 1) | (white == 1)] = 1
     ```
     
-![](./images/combine.png)
+![](./images/rgb_hls_combine.png)
     
    
 

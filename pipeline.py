@@ -84,7 +84,7 @@ def warp_image(threshold):
          [194, h]
          ]), dtype=np.float32)
 
-    offset = 250
+    offset = 300
     dst = np.array([
         [offset, 0],
         [w - offset, 0],
@@ -98,7 +98,7 @@ def warp_image(threshold):
     #                             isClosed=True,
     #                             color=(0, 0, 255),
     #                             thickness=1)
-    # cv2.imshow('', undistorted)
+    # cv2.imshow('', undistorted)000
     # cv2.waitKey(0)
 
     M = cv2.getPerspectiveTransform(src, dst)
@@ -415,9 +415,12 @@ mtx, dist = calibrate_camera()
 
 
 video_file_name = "project_video.mp4"
-# video_file_name = "challenge_video.mp4"
-# video_file_name = "harder_challenge_video.mp4"
 write_output = 'test_video_output/' + video_file_name
 clip1 = VideoFileClip(video_file_name)
 clip2 = clip1.fl_image(process_image)
 clip2.write_videofile(write_output, audio=False)
+
+# orig = cv2.imread("test_images/project_video/frame-14.jpg")
+# result = pipeline(orig, mtx, dist)
+# plt.imshow(result)
+# plt.show()
