@@ -24,7 +24,7 @@ def color_threshold(undistort):
     white_rgb = cv2.bitwise_and(undistort_rgb, undistort_rgb, mask=white_rgb_range)
     white_rgb = convert_to_binary(white_rgb)
 
-    yellow_lower = np.array([20, 100, 100], dtype=np.uint8)
+    yellow_lower = np.array([20, 100, 100], dtype=np.uyyint8)
     yellow_upper = np.array([40, 200, 255], dtype=np.uint8)
     yellow_range = cv2.inRange(undistort_hls, yellow_lower, yellow_upper)
     yellow = cv2.bitwise_and(undistort_hls, undistort_hls, mask=yellow_range)

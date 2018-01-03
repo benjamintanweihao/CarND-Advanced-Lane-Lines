@@ -78,7 +78,7 @@ This results in an image like this:
 
     ```python
     undistort_hls = cv2.cvtColor(undistort, cv2.COLOR_BGR2HLS)
- 
+
     yellow_upper = np.array([40, 200, 255], dtype=np.uint8)
     yellow_range = cv2.inRange(undistort_hls, yellow_lower, yellow_upper)
     yellow = cv2.bitwise_and(undistort_hls, undistort_hls, mask=yellow_range)
@@ -118,10 +118,10 @@ The code for my perspective transform includes a function called `warp_image()`.
         [w - offset, h],
         [offset, h]], dtype=np.float32)
 
-     M = cv2.getPerspectiveTransform(src, dst)
-     warped = cv2.warpPerspective(threshold, M, (w, h))
-     MInv = cv2.getPerspectiveTransform(dst, src)
-     ```
+    M = cv2.getPerspectiveTransform(src, dst)
+    warped = cv2.warpPerspective(threshold, M, (w, h))
+    MInv = cv2.getPerspectiveTransform(dst, src)
+    ```
   
 In order to get the points for `src`, I used an image with straight lane lines:
 
